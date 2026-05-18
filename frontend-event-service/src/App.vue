@@ -22,19 +22,30 @@ const navItems = [
   { key: 'integration', label: 'Service Integration' }
 ];
 
-async function fetchJson(url, options) {
-  const response = await fetch(url, options);
+function getAuthHeader() {
+  return 'Basic ' + btoa('admin:admin123');
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: getAuthHeader()
+    }
+  });
+
+  const text = await response.text();
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`${url} returned HTTP ${response.status}: ${errorText}`);
+    throw new Error(`${url} returned HTTP ${response.status}: ${text}`);
   }
 
-  if (response.status === 204) {
+  if (!text) {
     return null;
   }
 
-  return response.json();
+  return JSON.parse(text);
 }
 
 async function loadVenues() {
@@ -45,7 +56,7 @@ async function loadVenues() {
     venues.value = payload ?? [];
   } catch (error) {
     console.error('Failed to load venues', error);
-    alert('Failed to load venues. Check backend or gateway.');
+    alert('Failed to load venues. Check backend, gateway, or authentication.');
   } finally {
     loadingVenues.value = false;
   }
@@ -66,7 +77,7 @@ async function createVenue() {
 
     console.log('Creating venue with body:', body);
 
-    const response = await fetch('http://localhost:8080/venues', {
+    const createdVenue = await fetchJson('http://localhost:8080/venues', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -74,15 +85,7 @@ async function createVenue() {
       body: JSON.stringify(body)
     });
 
-    const text = await response.text();
-
-    console.log('Create venue response status:', response.status);
-    console.log('Create venue response body:', text);
-
-    if (!response.ok) {
-      alert(`Failed to create venue. Status: ${response.status}. Body: ${text}`);
-      return;
-    }
+    console.log('Created venue:', createdVenue);
 
     venueForm.value = {
       name: '',
@@ -136,7 +139,7 @@ async function updateVenue() {
     alert('Venue updated successfully.');
   } catch (error) {
     console.error('Failed to update venue', error);
-    alert('Failed to update venue.');
+    alert(`Failed to update venue: ${error.message}`);
   }
 }
 
@@ -149,12 +152,16 @@ async function deleteVenue(id) {
     }
 
     const response = await fetch(`http://localhost:8080/venues/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: {
+        Authorization: getAuthHeader()
+      }
     });
 
+    const text = await response.text();
+
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Delete failed with HTTP ${response.status}: ${errorText}`);
+      throw new Error(`Delete failed with HTTP ${response.status}: ${text}`);
     }
 
     await loadVenues();
@@ -162,7 +169,7 @@ async function deleteVenue(id) {
     alert('Venue deleted successfully.');
   } catch (error) {
     console.error('Failed to delete venue', error);
-    alert('Failed to delete venue.');
+    alert(`Failed to delete venue: ${error.message}`);
   }
 }
 
@@ -271,8 +278,7 @@ onMounted(async () => {
             <strong>API Gateway</strong>
 
             <span>
-              Centralized Routing Layer
-            </span>
+              Centralized Routing Layer with Basic Authentication</span>
           </div>
 
           <div>
@@ -373,7 +379,7 @@ onMounted(async () => {
             <strong>Create / Update Venue</strong>
 
             <span>
-              Use this form to trigger POST /venues and PUT /venues/{id}.
+              Uses authenticated requests to trigger POST /venues and PUT /venues/{id}.
             </span>
           </div>
 
@@ -542,7 +548,7 @@ onMounted(async () => {
             <strong>Frontend Integration</strong>
 
             <span>
-              Vue frontend connected through Gateway.
+              Vue frontend connected through Gateway using Basic Authentication.
             </span>
           </div>
 

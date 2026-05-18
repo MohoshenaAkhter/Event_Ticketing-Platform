@@ -18,8 +18,19 @@ const eventForm = ref({
 const assignEventId = ref('');
 const assignVenueId = ref('');
 
-async function fetchJson(url, options) {
-  const response = await fetch(url, options);
+function getAuthHeader() {
+  return 'Basic ' + btoa('admin:admin123');
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: getAuthHeader()
+    }
+  });
+
   const text = await response.text();
 
   if (!response.ok) {
@@ -41,7 +52,7 @@ async function loadEvents() {
     events.value = payload ?? [];
   } catch (error) {
     console.error('Failed to load events', error);
-    alert('Failed to load events.');
+    alert(`Failed to load events: ${error.message}`);
   } finally {
     loadingEvents.value = false;
   }
@@ -49,35 +60,41 @@ async function loadEvents() {
 
 async function createEvent() {
   try {
-    if (!eventForm.value.title || !eventForm.value.description) {
-      alert('Please fill title and description.');
+    if (!eventForm.value.title || !eventForm.value.description || !eventForm.value.category) {
+      alert('Please fill title, description, and category.');
       return;
     }
 
-    await fetchJson('http://localhost:8080/events', {
+    const body = {
+      title: eventForm.value.title,
+      description: eventForm.value.description,
+      category: eventForm.value.category,
+      organizerId: Number(eventForm.value.organizerId),
+      venueId: null,
+      startDateTime: eventForm.value.startDateTime,
+      endDateTime: eventForm.value.endDateTime,
+      status: eventForm.value.status,
+      posterUrl: eventForm.value.posterUrl
+    };
+
+    console.log('Creating event with body:', body);
+
+    const createdEvent = await fetchJson('http://localhost:8080/events', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        title: eventForm.value.title,
-        description: eventForm.value.description,
-        category: eventForm.value.category,
-        organizerId: Number(eventForm.value.organizerId),
-        venueId: null,
-        startDateTime: eventForm.value.startDateTime,
-        endDateTime: eventForm.value.endDateTime,
-        status: eventForm.value.status,
-        posterUrl: eventForm.value.posterUrl
-      })
+      body: JSON.stringify(body)
     });
+
+    console.log('Created event:', createdEvent);
 
     await loadEvents();
 
     alert('Event created successfully.');
   } catch (error) {
     console.error('Failed to create event', error);
-    alert('Failed to create event.');
+    alert(`Failed to create event: ${error.message}`);
   }
 }
 
@@ -100,7 +117,7 @@ async function assignVenueToEvent() {
     alert('Venue assigned successfully.');
   } catch (error) {
     console.error('Failed to assign venue', error);
-    alert('Failed to assign venue. Make sure both Event ID and Venue ID exist.');
+    alert(`Failed to assign venue: ${error.message}`);
   }
 }
 
