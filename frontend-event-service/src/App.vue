@@ -7,6 +7,14 @@ const activeTab = ref('dashboard');
 const venues = ref([]);
 const loadingVenues = ref(false);
 
+const venueForm = ref({
+  name: '',
+  location: '',
+  capacity: ''
+});
+
+const selectedVenueId = ref('');
+
 const navItems = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'events', label: 'Event Management' },
@@ -18,7 +26,12 @@ async function fetchJson(url, options) {
   const response = await fetch(url, options);
 
   if (!response.ok) {
-    throw new Error(`${url} returned HTTP ${response.status}`);
+    const errorText = await response.text();
+    throw new Error(`${url} returned HTTP ${response.status}: ${errorText}`);
+  }
+
+  if (response.status === 204) {
+    return null;
   }
 
   return response.json();
@@ -32,9 +45,135 @@ async function loadVenues() {
     venues.value = payload ?? [];
   } catch (error) {
     console.error('Failed to load venues', error);
+    alert('Failed to load venues. Check backend or gateway.');
   } finally {
     loadingVenues.value = false;
   }
+}
+
+async function createVenue() {
+  try {
+    if (!venueForm.value.name || !venueForm.value.location || !venueForm.value.capacity) {
+      alert('Please fill name, location, and capacity.');
+      return;
+    }
+
+    const body = {
+      name: venueForm.value.name,
+      location: venueForm.value.location,
+      capacity: Number(venueForm.value.capacity)
+    };
+
+    console.log('Creating venue with body:', body);
+
+    const response = await fetch('http://localhost:8080/venues', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    const text = await response.text();
+
+    console.log('Create venue response status:', response.status);
+    console.log('Create venue response body:', text);
+
+    if (!response.ok) {
+      alert(`Failed to create venue. Status: ${response.status}. Body: ${text}`);
+      return;
+    }
+
+    venueForm.value = {
+      name: '',
+      location: '',
+      capacity: ''
+    };
+
+    await loadVenues();
+
+    alert('Venue created successfully.');
+  } catch (error) {
+    console.error('Create venue failed:', error);
+    alert(`Failed to create venue: ${error.message}`);
+  }
+}
+
+async function updateVenue() {
+  try {
+    if (!selectedVenueId.value) {
+      alert('Enter venue ID for update.');
+      return;
+    }
+
+    if (!venueForm.value.name || !venueForm.value.location || !venueForm.value.capacity) {
+      alert('Please fill name, location, and capacity.');
+      return;
+    }
+
+    await fetchJson(`http://localhost:8080/venues/${selectedVenueId.value}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: venueForm.value.name,
+        location: venueForm.value.location,
+        capacity: Number(venueForm.value.capacity)
+      })
+    });
+
+    selectedVenueId.value = '';
+
+    venueForm.value = {
+      name: '',
+      location: '',
+      capacity: ''
+    };
+
+    await loadVenues();
+
+    alert('Venue updated successfully.');
+  } catch (error) {
+    console.error('Failed to update venue', error);
+    alert('Failed to update venue.');
+  }
+}
+
+async function deleteVenue(id) {
+  try {
+    const confirmed = confirm(`Delete venue with ID ${id}?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    const response = await fetch(`http://localhost:8080/venues/${id}`, {
+      method: 'DELETE'
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Delete failed with HTTP ${response.status}: ${errorText}`);
+    }
+
+    await loadVenues();
+
+    alert('Venue deleted successfully.');
+  } catch (error) {
+    console.error('Failed to delete venue', error);
+    alert('Failed to delete venue.');
+  }
+}
+
+function fillVenueForm(venue) {
+  selectedVenueId.value = venue.id;
+
+  venueForm.value = {
+    name: venue.name,
+    location: venue.location,
+    capacity: venue.capacity
+  };
 }
 
 onMounted(async () => {
@@ -226,6 +365,61 @@ onMounted(async () => {
           }}
         </button>
 
+        <!-- CREATE / UPDATE VENUE FORM -->
+
+        <div class="booking-card">
+
+          <div>
+            <strong>Create / Update Venue</strong>
+
+            <span>
+              Use this form to trigger POST /venues and PUT /venues/{id}.
+            </span>
+          </div>
+
+        </div>
+
+        <div class="venue-form">
+
+          <input
+            v-model="selectedVenueId"
+            placeholder="Venue ID for update"
+          />
+
+          <input
+            v-model="venueForm.name"
+            placeholder="Venue name"
+          />
+
+          <input
+            v-model="venueForm.location"
+            placeholder="Location"
+          />
+
+          <input
+            v-model="venueForm.capacity"
+            placeholder="Capacity"
+            type="number"
+          />
+
+          <button
+            class="refresh-button"
+            type="button"
+            @click="createVenue"
+          >
+            Create Venue
+          </button>
+
+          <button
+            class="refresh-button"
+            type="button"
+            @click="updateVenue"
+          >
+            Update Venue
+          </button>
+
+        </div>
+
         <div
           v-if="!venues.length"
           class="empty"
@@ -246,7 +440,7 @@ onMounted(async () => {
             </strong>
 
             <span>
-              {{ venue.location }}
+              ID: {{ venue.id }} | {{ venue.location }}
             </span>
 
           </div>
@@ -258,6 +452,26 @@ onMounted(async () => {
             <b>
               {{ venue.capacity }}
             </b>
+
+          </div>
+
+          <div class="venue-actions">
+
+            <button
+              class="refresh-button"
+              type="button"
+              @click="fillVenueForm(venue)"
+            >
+              Edit
+            </button>
+
+            <button
+              class="refresh-button"
+              type="button"
+              @click="deleteVenue(venue.id)"
+            >
+              Delete
+            </button>
 
           </div>
 

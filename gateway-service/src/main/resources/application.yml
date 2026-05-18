@@ -9,14 +9,16 @@ spring:
     gateway:
       server:
         webflux:
-          routes:
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
 
+          routes:
             - id: event-service
               uri: http://event-service:8083
               predicates:
-                - Path=/events/**
+                - Path=/events,/events/**
 
             - id: venue-service
               uri: http://venue-service:8084
               predicates:
-                - Path=/venues/**
+                - Path=/venues,/venues/**
