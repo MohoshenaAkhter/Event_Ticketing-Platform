@@ -11,37 +11,91 @@ The system includes:
 - PostgreSQL Database
 - Docker Compose deployment
 
+
+
+Event Service
+Docker image: mohoshena/event-service:latest
+Port: 8083
+
+Endpoints:
+GET    /events
+POST   /events
+GET    /events/{id}
+PUT    /events/{id}
+PATCH  /events/{id}/status
+PUT    /events/{id}/venue?venueId={venueId}
+
+Needs database:
+PostgreSQL
+
+Notes:
+Event Service communicates with Venue Service when assigning a venue to an event.
+
+
+Venue Service
+Docker image: mohoshena/venue-service:latest
+Port: 8084
+
+Endpoints:
+GET    /venues
+POST   /venues
+GET    /venues/{id}
+PUT    /venues/{id}
+DELETE /venues/{id}
+
+Needs database:
+PostgreSQL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 The frontend communicates with backend services through the API Gateway. The Event Service communicates with the Venue Service to assign venues to events.
-
-## Project Structure
-
-text
-event-ticketing-platform/
-│
-├── event-service/
-│   ├── src/
-│   ├── pom.xml
-│   └── Dockerfile
-│
-├── venue-service/
-│   ├── src/
-│   ├── pom.xml
-│   └── Dockerfile
-│
-├── gateway-service/
-│   ├── src/
-│   ├── pom.xml
-│   └── Dockerfile
-│
-├── frontend/
-│   ├── src/
-│   ├── package.json
-│   └── Dockerfile
-│
-├── docker-compose.yml
-├── .gitignore
-└── README.md
-
 Technologies Used
 Backend
 Java 17
