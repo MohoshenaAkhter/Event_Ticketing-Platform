@@ -1,6 +1,7 @@
 package ee.ut.eventticketing.event.service;
 
 import ee.ut.eventticketing.event.dto.VenueDTO;
+import ee.ut.eventticketing.event.messaging.EventPublisher;
 import ee.ut.eventticketing.event.model.Event;
 import ee.ut.eventticketing.event.repository.EventRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,18 +19,29 @@ public class EventService {
 
     private final EventRepository repo;
     private final RestTemplate restTemplate;
+    private final EventPublisher eventPublisher;
 
     @Value("${venue.service.url}")
     private String venueServiceUrl;
 
-    public EventService(EventRepository repo, RestTemplate restTemplate) {
+    public EventService(
+            EventRepository repo,
+            RestTemplate restTemplate,
+            EventPublisher eventPublisher
+    ) {
         this.repo = repo;
         this.restTemplate = restTemplate;
+        this.eventPublisher = eventPublisher;
     }
 
     public Event create(Event event) {
         event.setStatus("DRAFT");
-        return repo.save(event);
+
+        Event savedEvent = repo.save(event);
+
+        eventPublisher.publishEventCreated(savedEvent);
+
+        return savedEvent;
     }
 
     public List<Event> getAll() {

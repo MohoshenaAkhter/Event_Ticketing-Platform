@@ -23,6 +23,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/venue_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: 1234
+      JWT_ISSUER: event-ticketing-gateway
+      JWT_SECRET: event-ticketing-development-secret-32
 
   event-service:
     build: ./event-service
@@ -36,6 +38,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/event_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: 1234
+      JWT_ISSUER: event-ticketing-gateway
+      JWT_SECRET: event-ticketing-development-secret-32
+      VENUE_SERVICE_URL: http://venue-service:8084
 
   gateway-service:
     build: ./gateway-service
