@@ -3,7 +3,11 @@ package ee.ut.eventticketing.event.service;
 import ee.ut.eventticketing.event.dto.VenueDTO;
 import ee.ut.eventticketing.event.model.Event;
 import ee.ut.eventticketing.event.repository.EventRepository;
-
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -15,17 +19,16 @@ public class EventService {
     private final EventRepository repo;
     private final RestTemplate restTemplate;
 
-    public EventService(EventRepository repo,
-                        RestTemplate restTemplate) {
+    @Value("${venue.service.url}")
+    private String venueServiceUrl;
 
+    public EventService(EventRepository repo, RestTemplate restTemplate) {
         this.repo = repo;
         this.restTemplate = restTemplate;
     }
 
     public Event create(Event event) {
-
         event.setStatus("DRAFT");
-
         return repo.save(event);
     }
 
@@ -38,52 +41,49 @@ public class EventService {
     }
 
     public Event update(Long id, Event updated) {
-
         Event event = repo.findById(id).orElseThrow();
 
         event.setTitle(updated.getTitle());
         event.setDescription(updated.getDescription());
+        event.setCategory(updated.getCategory());
+        event.setOrganizerId(updated.getOrganizerId());
+        event.setVenueId(updated.getVenueId());
+        event.setStartDateTime(updated.getStartDateTime());
+        event.setEndDateTime(updated.getEndDateTime());
+        event.setStatus(updated.getStatus());
+        event.setPosterUrl(updated.getPosterUrl());
 
         return repo.save(event);
     }
 
     public Event updateStatus(Long id, String status) {
-
         Event event = repo.findById(id).orElseThrow();
-
         event.setStatus(status);
-
         return repo.save(event);
     }
 
-    // REAL MICROSERVICE INTEGRATION
+    public Event assignVenue(Long eventId, Long venueId, String authorizationHeader) {
+        Event event = repo.findById(eventId).orElseThrow();
 
-    public Event assignVenue(Long eventId, Long venueId) {
+        String url = venueServiceUrl + "/venues/" + venueId;
 
-        // CALL VENUE SERVICE
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", authorizationHeader);
 
-       String url =
-        "http://venue-service:8084/venues/" + venueId;
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-        VenueDTO venue =
-                restTemplate.getForObject(
-                        url,
-                        VenueDTO.class
-                );
+        ResponseEntity<VenueDTO> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                entity,
+                VenueDTO.class
+        );
 
-        // VALIDATE VENUE EXISTS
+        VenueDTO venue = response.getBody();
 
         if (venue == null) {
             throw new RuntimeException("Venue not found");
         }
-
-        // FIND EVENT
-
-        Event event =
-                repo.findById(eventId)
-                        .orElseThrow();
-
-        // ASSIGN VENUE
 
         event.setVenueId(venue.getId());
 
